@@ -1,6 +1,7 @@
 import unittest
 
 import coverage
+from flask_migrate import MigrateCommand
 from flask_script import Manager
 from project import db, create_app
 from project.api.models import User
@@ -17,7 +18,7 @@ COV.start()
 
 app = create_app()
 manager = Manager(app)
-
+manager.add_command('db', MigrateCommand)
 
 @manager.command
 def recreate_db():
@@ -30,8 +31,8 @@ def recreate_db():
 @manager.command
 def seed_db():
     """Seeds the database."""
-    db.session.add(User(username='henrique', email="eu@henriquedesimone.com.br"))
-    db.session.add(User(username='henriquedesimone', email="henrique.desimone@hfocus.com.br"))
+    db.session.add(User(username='henrique', email="eu@henriquedesimone.com.br", password='test'))
+    db.session.add(User(username='henriquedesimone', email="henrique.desimone@hfocus.com.br", 'test'))
     db.session.commit()
 
 

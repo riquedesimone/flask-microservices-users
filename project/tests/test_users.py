@@ -1,15 +1,8 @@
+import datetime
 import json
 
-from project import db
-from project.api.models import User
 from project.tests.base import BaseTestCase
-
-
-def add_user(username, email):
-    user = User(username=username, email=email)
-    db.session.add(user)
-    db.session.commit()
-    return user
+from project.tests.utils import add_user
 
 
 class TestUserService(BaseTestCase):
@@ -30,7 +23,8 @@ class TestUserService(BaseTestCase):
                 '/users',
                 data=json.dumps(dict(
                     username='henrique',
-                    email='eu@henriquedesimone.com.br'
+                    email='eu@henriquedesimone.com.br',
+                    password='test'
                 )),
                 content_type='application/json'
             )
@@ -76,7 +70,8 @@ class TestUserService(BaseTestCase):
                 '/users',
                 data=json.dumps(dict(
                     username='henrique',
-                    email='eu@henriquedesimone.com.br'
+                    email='eu@henriquedesimone.com.br',
+                    password='test'
                 )),
                 content_type='application/json',
             )
@@ -85,7 +80,8 @@ class TestUserService(BaseTestCase):
                 '/users',
                 data=json.dumps(dict(
                     username='henrique',
-                    email='eu@henriquedesimone.com.br'
+                    email='eu@henriquedesimone.com.br',
+                    password='test'
                 )),
                 content_type='application/json',
             )
@@ -97,7 +93,7 @@ class TestUserService(BaseTestCase):
 
     def test_single_user(self):
         """Ensure get single user behaves correctly."""
-        user = add_user('henrique', 'eu@henriquedesimone.com.br')
+        user = add_user('henrique', 'eu@henriquedesimone.com.br', 'test')
 
         with self.client:
             response = self.client.get(f'/users/{user.id}')
@@ -128,9 +124,9 @@ class TestUserService(BaseTestCase):
 
     def test_all_users(self):
         """Ensure get all users behaves correctly."""
-
-        add_user('henrique', 'eu@henriquedesimone.com.br')
-        add_user('roberto', 'roberto.silva@hfocus.com.br')
+        created = datetime.datetime.utcnow() + datetime.timedelta(-30)
+        add_user('henrique', 'eu@henriquedesimone.com.br', 'test', created)
+        add_user('roberto', 'roberto.silva@hfocus.com.br', 'test')
 
         with self.client:
             response = self.client.get('/users')
@@ -139,39 +135,23 @@ class TestUserService(BaseTestCase):
             self.assertEqual(len(data['data']['users']), 2)
             self.assertTrue('created_at' in data['data']['users'][0])
             self.assertTrue('created_at' in data['data']['users'][1])
-            self.assertIn('henrique', data['data']['users'][0]['username'])
-            self.assertIn('eu@henriquedesimone.com.br', data['data']['users'][0]['email'])
-            self.assertIn('roberto', data['data']['users'][1]['username'])
-            self.assertIn('roberto.silva@hfocus.com.br', data['data']['users'][1]['email'])
+            self.assertIn('henrique', data['data']['users'][1]['username'])
+            self.assertIn('eu@henriquedesimone.com.br', data['data']['users'][1]['email'])
+            self.assertIn('roberto', data['data']['users'][0]['username'])
+            self.assertIn('roberto.silva@hfocus.com.br', data['data']['users'][0]['email'])
             self.assertIn('success', data['status'])
 
-    def test_main_no_users(self):
-        """Ensure the main route behaves correctly whe no users have been added to the database."""
-        response = self.client.get('/')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'<h1>All Users</h1>', response.data)
-        self.assertIn(b'<p>No users!</p>', response.data)
-
-    def test_main_with_users(self):
-        """Ensure the main route behaves corretly when users have been added to the database."""
-        add_user('henrique', 'eu@henriquedesimone.com.br')
-        add_user('henriquedesimone', 'henrique.desimone@hfocus.com.br')
-        response = self.client.get('/')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'<h1>All Users</h1>', response.data)
-        self.assertNotIn(b'<p>No users!</p>', response.data)
-        self.assertIn(b'<strong>henrique</strong>', response.data)
-        self.assertIn(b'<strong>henriquedesimone</strong>', response.data)
-
-    def test_main_add_user(self):
-        """Ensure a new user can be added to the database"""
+    def test_add_user_invalid_json_keys_no_password(self):
+        """Ensure error is thrown if the JSON object does not have a password key."""
         with self.client:
             response = self.client.post(
-                '/',
-                data=dict(username='henrique', email='eu@henriquedesimone.com.br'),
-                follow_redirects=True
+                '/users',
+                data=json.dumps(dict(
+                    username='michael',
+                    email='michael@realpython.com')),
+                content_type='application/json',
             )
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'<h1>All Users</h1>', response.data)
-            self.assertNotIn(b'<p>No users!</p>', response.data)
-            self.assertIn(b'<strong>henrique</strong>', response.data)
+            data = json.loads(response.data.decode())
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Invalid payload.', data['message'])
+            self.assertIn('fail', data['status'])

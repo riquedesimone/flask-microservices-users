@@ -28,12 +28,13 @@ def add_user():
 
     username = post_data.get('username')
     email = post_data.get('email')
+    password = post_data.get('password')
 
     try:
         user = User.query.filter_by(email=email).first()
 
         if not user:
-            db.session.add(User(username=username, email=email))
+            db.session.add(User(username=username, email=email, password=password))
             db.session.commit()
 
             response_object = {
@@ -48,7 +49,7 @@ def add_user():
                 'message': 'Sorry. That email already exists.'
             }
             return jsonify(response_object), 400
-    except exc.IntegrityError as e:
+    except (exc.IntegrityError, ValueError) as e:
         db.session.rollback()
         response_object = {
             'status': 'fail',
@@ -90,7 +91,7 @@ def get_single_user(user_id):
 def get_all_users():
     """Get all users"""
 
-    users = User.query.all()
+    users = User.query.order_by(User.created_at.desc()).all()
     users_list = []
 
     for user in users:
@@ -111,15 +112,3 @@ def get_all_users():
     }
 
     return jsonify(response_object), 200
-
-
-@users_blueprint.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        db.session.add(User(username=username, email=email))
-        db.session.commit()
-    users = User.query.order_by(User.created_at.desc()).all()
-
-    return render_template('index.html', users=users)
